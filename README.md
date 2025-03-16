@@ -1,8 +1,4 @@
-Here is the **updated README.md** with the correct **license (CC BY-ND 4.0)** to **prevent modifications**, while still allowing people to use it. 🚀
-
----
-
-### **📌 Final Updated `README.md`**
+### **📌 `README.md`**
 ```md
 # 📄 PDF to Word Converter
 
