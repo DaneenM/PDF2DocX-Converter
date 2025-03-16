@@ -1,236 +1,150 @@
 import tkinter as tk
 from tkinterdnd2 import DND_FILES, TkinterDnD
-from tkinter import filedialog, messagebox, scrolledtext, Menu
+from tkinter import filedialog, messagebox
 from pdf2docx import Converter
-from docx import Document
 import os
-import re
 import subprocess
-import nltk
-from nltk.stem import WordNetLemmatizer
-from nltk.corpus import stopwords
 
-# Download required resources for nltk (only need to do this once)
-# nltk.download('wordnet')
-# nltk.download('stopwords')
-# nltk.download('punkt')
+class PDFtoWordApp(tk.Frame):
+    def __init__(self, master=None):
+        super().__init__(master)
+        self.master = master
+        self.master.title("PDF to Word Converter")
+        self.master.geometry("500x420")  # 🔥 Perfectly sized
+        self.master.resizable(False, False)
+        self.master.configure(bg="#F8F9FA")
+        self.pack(pady=15)
+        self.create_widgets()
 
+    def create_widgets(self):
+        # --- Fonts & Colors ---
+        title_font = ("Arial", 18, "bold")
+        button_font = ("Arial", 11, "bold")
+        entry_font = ("Arial", 10)
+        primary_color = "#007BFF"
+        danger_color = "#DC3545"
+        success_color = "#28A745"
+        neutral_gray = "#E9ECEF"
+        text_color = "#222"  # Dark text for better contrast
 
-# --- Utility Functions ---
-def select_pdf():
-    """Let the user select a PDF file via file dialog."""
-    file_path = filedialog.askopenfilename(filetypes=[("PDF Files", "*.pdf")])
-    if file_path:
-        update_selected_file(file_path)
+        # --- Main Frame (Sleek UI) ---
+        frame = tk.Frame(self.master, bg="white", relief="flat", bd=0)
+        frame.pack(padx=15, pady=10, ipadx=10, ipady=10, fill="both", expand=True)
 
-def update_selected_file(file_path):
-    """Update the entry field and enable the convert button."""
-    pdf_entry.delete(0, tk.END)
-    pdf_entry.insert(0, file_path)
-    convert_button.config(state=tk.NORMAL)
-    check_ats_button_state()
+        # --- Title Section ---
+        title_label = tk.Label(frame, text="PDF to Word Converter", font=title_font, bg="white", fg=text_color)
+        title_label.pack(pady=(5, 15))
 
-def convert_pdf_to_word():
-    """Convert the selected PDF file to a Word document."""
-    pdf_file = pdf_entry.get()
-    if not pdf_file:
-        messagebox.showerror("Error", "Please select or drop a PDF file.")
-        return
+        # --- File Selection Area ---
+        file_frame = tk.Frame(frame, bg="white")
+        file_frame.pack(pady=5)
 
-    output_folder = "output"
-    os.makedirs(output_folder, exist_ok=True)
+        self.pdf_entry = tk.Entry(file_frame, width=40, font=entry_font, bd=1, relief="solid", bg="#fff", fg=text_color)
+        self.pdf_entry.pack(side=tk.LEFT, padx=5, pady=5, ipady=5)
+        self.pdf_entry.drop_target_register(DND_FILES)
+        self.pdf_entry.dnd_bind("<<Drop>>", self.on_drop)
+        self.pdf_entry.bind("<KeyRelease>", self.check_button_state)
 
-    pdf_name = os.path.basename(pdf_file).replace(".pdf", ".docx")
-    docx_file = os.path.join(output_folder, pdf_name)
+        browse_button = tk.Button(file_frame, text="Browse", command=self.select_pdf, font=button_font, 
+                                  bg=primary_color, fg=text_color, bd=0, padx=12, pady=6, relief="flat")
+        browse_button.pack(side=tk.LEFT, padx=5)
+        browse_button.bind("<Enter>", lambda e: browse_button.config(bg="#0056b3"))
+        browse_button.bind("<Leave>", lambda e: browse_button.config(bg=primary_color))
 
-    try:
-        cv = Converter(pdf_file)
-        cv.convert(docx_file, start=0, end=None)
-        cv.close()
+        clear_button = tk.Button(file_frame, text="Clear", command=self.clear_file, font=button_font, 
+                                 bg=danger_color, fg=text_color, bd=0, padx=12, pady=6, relief="flat")
+        clear_button.pack(side=tk.LEFT, padx=5)
+        clear_button.bind("<Enter>", lambda e: clear_button.config(bg="#b52b3b"))
+        clear_button.bind("<Leave>", lambda e: clear_button.config(bg=danger_color))
 
-        messagebox.showinfo("Success", f"Conversion complete!\nSaved in: {docx_file}")
-        subprocess.run(["open", "-a", "LibreOffice", docx_file])
+        # --- Drag & Drop Section ---
+        self.drop_area = tk.Label(
+            frame, text="Drag & Drop PDF Here", font=("Arial", 12, "bold"), bg=neutral_gray, fg=text_color,
+            relief="flat", width=45, height=3, padx=10, pady=10
+        )
+        self.drop_area.pack(pady=15, ipadx=10, ipady=10, fill="x")
+        self.drop_area.drop_target_register(DND_FILES)
+        self.drop_area.dnd_bind("<<Drop>>", self.on_drop)
 
-    except Exception as e:
-        messagebox.showerror("Error", f"Failed to convert file.\nError: {str(e)}")
+        # --- Convert Button (🔥 Fixed Text Readability) ---
+        self.convert_button = tk.Button(
+            frame, text="Convert to Word", command=self.convert_pdf_to_word, font=button_font,
+            bg=success_color, fg=text_color, state=tk.DISABLED, bd=0, padx=15, pady=12, relief="flat"
+        )
+        self.convert_button.pack(pady=20)
+        self.convert_button.bind("<Enter>", lambda e: self.convert_button.config(bg="#218838") if self.convert_button["state"] == "normal" else None)
+        self.convert_button.bind("<Leave>", lambda e: self.convert_button.config(bg=success_color) if self.convert_button["state"] == "normal" else None)
 
-def extract_text_from_docx(docx_path):
-    """Extract text from a Word document (.docx)."""
-    if not os.path.exists(docx_path):
-        messagebox.showerror("Error", "No converted resume found.")
-        return ""
+        # --- Status Message ---
+        self.status_label = tk.Label(frame, text="", font=("Arial", 10), bg="white", fg="green")
+        self.status_label.pack(pady=5)
 
-    doc = Document(docx_path)
-    return "\n".join([para.text for para in doc.paragraphs])
+    def select_pdf(self):
+        """Let the user select a PDF file via file dialog."""
+        file_path = filedialog.askopenfilename(filetypes=[("PDF Files", "*.pdf")])
+        if file_path:
+            self.update_selected_file(file_path)
 
-def compare_keywords(resume_text, job_description):
-    """Check for missing and present keywords, using lemmatization."""
-    lemmatizer = WordNetLemmatizer()
-    stop_words = set(stopwords.words('english'))
+    def clear_file(self):
+        """Clear the selected PDF file."""
+        self.pdf_entry.delete(0, tk.END)  # Clear input field
+        self.convert_button.config(state=tk.DISABLED)  # Disable Convert button
+        self.status_label.config(text="", fg="green")  # Reset status message
 
-    def process_text(text):
-        words = re.findall(r'\b\w+\b', text.lower())  # Extract words
-        # Lemmatize, remove stop words, and ensure words are longer than 2 characters
-        return {lemmatizer.lemmatize(w) for w in words if w not in stop_words and len(w) > 2}
+    def update_selected_file(self, file_path):
+        """Update the entry field and enable convert button."""
+        self.pdf_entry.delete(0, tk.END)
+        self.pdf_entry.insert(0, file_path)
+        self.convert_button.config(state=tk.NORMAL)  # Enable Convert button
 
-    job_words = process_text(job_description)
-    resume_words = process_text(resume_text)
+    def convert_pdf_to_word(self):
+        """Convert the selected PDF file to a Word document."""
+        pdf_file = self.pdf_entry.get()
+        if not pdf_file:
+            messagebox.showerror("Error", "Please select or drop a PDF file.")
+            return
 
-    missing_keywords = job_words - resume_words
-    matched_keywords = job_words & resume_words
+        output_folder = "output"
+        os.makedirs(output_folder, exist_ok=True)
 
-    return missing_keywords, matched_keywords
+        pdf_name = os.path.basename(pdf_file).replace(".pdf", ".docx")
+        docx_file = os.path.join(output_folder, pdf_name)
 
+        try:
+            cv = Converter(pdf_file)
+            cv.convert(docx_file, start=0, end=None)
+            cv.close()
 
-def check_ats():
-    """Check ATS compatibility and give a pass/fail score."""
-    pdf_file = pdf_entry.get()
-    if not pdf_file:
-        messagebox.showerror("Error", "Please select a PDF file first.")
-        return
+            messagebox.showinfo("Success", f"Conversion complete!\nSaved in: {docx_file}")
+            self.status_label.config(text=f"✔ File saved: {docx_file}", fg="green")
 
-    docx_file = os.path.join(os.getcwd(), "output", os.path.basename(pdf_file).replace(".pdf", ".docx"))
-    job_description = job_desc_text.get("1.0", tk.END).strip()
+            # Open the converted file
+            if os.name == "nt":  # Windows
+                os.startfile(docx_file)
+            elif os.name == "posix":  # macOS & Linux
+                subprocess.run(["open", docx_file])
 
-    if not os.path.exists(docx_file):
-        messagebox.showerror("Error", "No converted resume found.  Please convert the PDF to Word first.") # More specific error
-        return
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to convert file.\nError: {str(e)}")
+            self.status_label.config(text="Conversion failed!", fg="red")
 
-    resume_text = extract_text_from_docx(docx_file)
-    missing, matched = compare_keywords(resume_text, job_description)
+    def on_drop(self, event):
+        """Handle file drop."""
+        dropped_file = event.data.strip().lstrip('{').rstrip('}')
+        if os.path.isfile(dropped_file) and dropped_file.lower().endswith(".pdf"):
+            self.update_selected_file(dropped_file)
+        else:
+            messagebox.showerror("Error", "Please drop a valid PDF file.")
 
-    # Basic ATS Scoring System (Adjusted for lemmatized keywords)
-    keyword_match_score = (len(matched) / (len(matched) + len(missing))) * 100 if (len(matched) + len(missing)) > 0 else 0
-    resume_length = len(resume_text.split())
-
-    # ATS-Friendly Formatting Check
-    formatting_issues = 0
-    if resume_length < 200:
-        formatting_issues += 1
-    if "image" in resume_text.lower() or "table" in resume_text.lower():
-        formatting_issues += 0.5
-
-    # Final Score Calculation
-    final_score = keyword_match_score - (formatting_issues * 10)
-    final_score = max(0, min(100, final_score))
-
-    # Pass/Fail Criteria
-    if final_score >= 75:
-        ats_result = "✅ Pass (Your resume is ATS-friendly)"
-    elif final_score >= 50:
-        ats_result = "⚠️ Warning (May pass, but needs improvements)"
-    else:
-        ats_result = "❌ Fail (Your resume may not pass an ATS filter)"
-
-    result_message = (
-        f"🔹 **ATS Score:** {final_score:.2f}%\n"
-        f"✅ **Matched Keywords:** {', '.join(matched)}\n"
-        f"❌ **Missing Keywords:** {', '.join(missing)}\n"
-        f"📄 **Resume Length:** {resume_length} words\n"
-        f"{ats_result}"
-    )
-
-    messagebox.showinfo("ATS Check Results", result_message)
-
-def check_ats_button_state():
-    """Enable ATS check button only when both fields are filled."""
-    if pdf_entry.get().strip() and job_desc_text.get("1.0", tk.END).strip():
-        ats_button.config(state=tk.NORMAL)
-    else:
-        ats_button.config(state=tk.DISABLED)
-
-def clear_text():
-    """Clear the job description text box."""
-    job_desc_text.delete("1.0", tk.END)
-    check_ats_button_state()
-
-def on_drop(event):
-    """Handle file drop and update the UI."""
-    dropped_file = event.data.strip()
-    dropped_file = dropped_file.lstrip('{').rstrip('}')
-
-    if os.path.isfile(dropped_file) and dropped_file.lower().endswith(".pdf"):
-        update_selected_file(dropped_file)
-    else:
-        messagebox.showerror("Error", "Please drop a valid PDF file.")
-
-def on_closing():
-    """Handle the close event."""
-    if messagebox.askokcancel("Quit", "Are you sure you want to close?"):
-        root.destroy()
-
-def create_context_menu(widget):
-    """Create right-click context menu."""
-    menu = Menu(root, tearoff=0)
-    menu.add_command(label="Cut", command=lambda: widget.event_generate("<<Cut>>"))
-    menu.add_command(label="Copy", command=lambda: widget.event_generate("<<Copy>>"))
-    menu.add_command(label="Paste", command=lambda: widget.event_generate("<<Paste>>"))
-
-    def show_menu(event):
-        menu.tk_popup(event.x_root, event.y_root)
-
-    widget.bind("<Button-2>" if os.name == "posix" else "<Button-3>", show_menu)
-
-
-# --- Main GUI Setup ---
-root = TkinterDnD.Tk()
-root.title("PDF to Word + ATS Checker")
-root.geometry("600x550")
-root.resizable(False, False)
-root.protocol("WM_DELETE_WINDOW", on_closing)
-root.configure(bg="#f0f0f0")
-
-# --- Styling ---
-title_font = ("Arial", 16, "bold")
-label_font = ("Arial", 10)
-button_font = ("Arial", 11, "bold")
-
-# --- Top Section: Title ---
-title_label = tk.Label(root, text="PDF to Word + ATS Checker", font=title_font, bg="#f0f0f0")
-title_label.pack(pady=(20, 10))
-
-# --- PDF Selection Area ---
-pdf_frame = tk.Frame(root, bg="#f0f0f0")
-pdf_frame.pack(pady=10)
-
-pdf_entry = tk.Entry(pdf_frame, width=40, font=label_font, bd=1, relief="solid", highlightthickness=1, highlightcolor="#aaa")
-pdf_entry.pack(side=tk.LEFT, padx=5)
-pdf_entry.drop_target_register(DND_FILES)
-pdf_entry.dnd_bind("<<Drop>>", on_drop)
-
-browse_button = tk.Button(pdf_frame, text="Browse", command=select_pdf, font=button_font, bg="#4CAF50", fg="#616161", bd=0, padx=10, pady=5, relief="flat")  # Changed text color
-browse_button.pack(side=tk.LEFT, padx=5)
-browse_button.bind("<Enter>", lambda e: browse_button.config(bg="#388E3C"))
-browse_button.bind("<Leave>", lambda e: browse_button.config(bg="#4CAF50"))
-
-# --- Convert Button ---
-convert_button = tk.Button(root, text="Convert to Word", command=convert_pdf_to_word, font=button_font, bg="#2196F3", fg="#616161", state=tk.DISABLED, bd=0, padx=15, pady=8, relief="flat")  # Changed text color
-convert_button.pack(pady=10)
-convert_button.bind("<Enter>", lambda e: convert_button.config(bg="#1976D2") if convert_button["state"] == "normal" else None)
-convert_button.bind("<Leave>", lambda e: convert_button.config(bg="#2196F3") if convert_button["state"] == "normal" else None)
-
-# --- Job Description Input ---
-job_desc_label = tk.Label(root, text="Paste Job Description Below:", font=label_font, bg="#f0f0f0")
-job_desc_label.pack()
-
-text_frame = tk.Frame(root, bg="#f0f0f0")
-text_frame.pack(pady=5)
-
-job_desc_text = scrolledtext.ScrolledText(text_frame, height=6, width=50, wrap=tk.WORD, font=label_font, bd=1, relief="solid", highlightthickness=1, highlightcolor="#aaa")
-job_desc_text.pack(side=tk.LEFT, padx=5)
-job_desc_text.bind("<KeyRelease>", lambda event: check_ats_button_state())
-create_context_menu(job_desc_text)
-
-clear_button = tk.Button(text_frame, text="Clear", command=clear_text, font=button_font, bg="#F44336", fg="#616161", bd=0, padx=10, pady=5, relief="flat")  # Changed text color
-clear_button.pack(side=tk.RIGHT, padx=5)
-clear_button.bind("<Enter>", lambda e: clear_button.config(bg="#D32F2F"))
-clear_button.bind("<Leave>", lambda e: clear_button.config(bg="#F44336"))
-
-# --- ATS Check Button ---
-ats_button = tk.Button(root, text="Check ATS Compatibility", command=check_ats, font=button_font, bg="#8BC34A", fg="#616161", state=tk.DISABLED, bd=0, padx=15, pady=8, relief="flat")  # Changed text color
-ats_button.pack(pady=20)
-ats_button.bind("<Enter>", lambda e: ats_button.config(bg="#689F38") if ats_button["state"] == "normal" else None)
-ats_button.bind("<Leave>", lambda e: ats_button.config(bg="#8BC34A") if ats_button["state"] == "normal" else None)
+    def check_button_state(self, event=None):
+        """Enable the Convert button only if a PDF file is selected."""
+        if self.pdf_entry.get().strip():
+            self.convert_button.config(state=tk.NORMAL)
+        else:
+            self.convert_button.config(state=tk.DISABLED)
 
 # --- Run GUI ---
-root.mainloop()
+if __name__ == "__main__":
+    root = TkinterDnD.Tk()
+    app = PDFtoWordApp(master=root)
+    app.mainloop()
