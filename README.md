@@ -1,5 +1,3 @@
-### **📌 `README.md`**
-```md
 # 📄 PDF to Word Converter
 
 A simple, modern, and easy-to-use tool to convert PDFs to Word documents.
@@ -17,8 +15,8 @@ A simple, modern, and easy-to-use tool to convert PDFs to Word documents.
 ### 🔹 Step 1: Clone the Repository
 First, download the project from GitHub:
 ```bash
-git clone https://github.com/yourusername/pdf-to-word.git
-cd pdf-to-word
+git clone git@github.com:DaneenM/PDF2DocX-Converter.git
+cd PDF2DocX-Converter
 ```
 
 ### 🔹 Step 2: Install Dependencies
@@ -79,8 +77,3 @@ For full details, see the official license:
 🔗 [CC BY-ND 4.0 License](https://creativecommons.org/licenses/by-nd/4.0/)
 
 ---
-
-### **🔥 Now Your Project is Fully Protected & Ready!**
-🚀 **This ensures people can use it, but NOT modify it.**  
-📌 **Now commit & push this final version:**
-
