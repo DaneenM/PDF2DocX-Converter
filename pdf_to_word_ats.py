@@ -1,10 +1,9 @@
 import tkinter as tk
 from tkinterdnd2 import DND_FILES, TkinterDnD
-from tkinter import filedialog, messagebox, scrolledtext
+from tkinter import filedialog, messagebox, scrolledtext, Menu
 from pdf2docx import Converter
 from docx import Document
 import os
-import sys
 import re
 import subprocess
 
@@ -18,7 +17,7 @@ def update_selected_file(file_path):
     """Update the entry field and enable the convert button."""
     pdf_entry.delete(0, tk.END)
     pdf_entry.insert(0, file_path)
-    convert_button.config(state=tk.NORMAL, bg="blue", fg="white")  # Enable Convert button
+    convert_button.config(state=tk.NORMAL, bg="blue", fg="white")
     check_ats_button_state()
 
 def convert_pdf_to_word():
@@ -40,7 +39,7 @@ def convert_pdf_to_word():
         cv.close()
         
         messagebox.showinfo("Success", f"Conversion complete!\nSaved in: {docx_file}")
-        subprocess.run(["open", "-a", "LibreOffice", docx_file])  
+        subprocess.run(["open", "-a", "LibreOffice", docx_file])
 
     except Exception as e:
         messagebox.showerror("Error", f"Failed to convert file.\nError: {str(e)}")
@@ -94,7 +93,7 @@ def check_ats():
 
     # Final Score Calculation
     final_score = keyword_match_score - (formatting_issues * 10)  
-    final_score = max(0, min(100, final_score))  
+    final_score = max(0, min(100, final_score))
 
     # Pass/Fail Criteria
     if final_score >= 75:
@@ -121,6 +120,11 @@ def check_ats_button_state():
     else:
         ats_button.config(state=tk.DISABLED, bg="lightgray", fg="black")
 
+def clear_text():
+    """Clear the job description text box."""
+    job_desc_text.delete("1.0", tk.END)
+    check_ats_button_state()
+
 def on_drop(event):
     """Handle file drop and update the UI."""
     dropped_file = event.data.strip()  
@@ -132,13 +136,25 @@ def on_drop(event):
 def on_closing():
     """Handle the close event properly so the app exits without freezing."""
     if messagebox.askokcancel("Quit", "Are you sure you want to close?"):
-        root.destroy()  
-        sys.exit(0)  
+        root.destroy()
+
+def create_context_menu(widget):
+    """Create right-click context menu for copy, cut, and paste."""
+    menu = Menu(root, tearoff=0)
+    menu.add_command(label="Cut", command=lambda: widget.event_generate("<<Cut>>"))
+    menu.add_command(label="Copy", command=lambda: widget.event_generate("<<Copy>>"))
+    menu.add_command(label="Paste", command=lambda: widget.event_generate("<<Paste>>"))
+
+    def show_menu(event):
+        """Show context menu on right-click."""
+        menu.tk_popup(event.x_root, event.y_root)
+
+    widget.bind("<Button-2>" if os.name == "posix" else "<Button-3>", show_menu)  
 
 # Create GUI
 root = TkinterDnD.Tk()  
 root.title("PDF to Word + ATS Checker")
-root.geometry("550x570")
+root.geometry("600x600")
 root.resizable(False, False)
 root.protocol("WM_DELETE_WINDOW", on_closing)
 
@@ -158,9 +174,19 @@ convert_button.pack(pady=10)
 
 # Job Description Input
 tk.Label(root, text="Paste Job Description Below:").pack(pady=5)
-job_desc_text = scrolledtext.ScrolledText(root, height=6, width=60, wrap=tk.WORD)
-job_desc_text.pack(pady=5)
+frame = tk.Frame(root)
+frame.pack()
+
+job_desc_text = scrolledtext.ScrolledText(frame, height=6, width=60, wrap=tk.WORD)
+job_desc_text.pack(side=tk.LEFT, padx=5, pady=5)
 job_desc_text.bind("<KeyRelease>", lambda event: check_ats_button_state())
+
+# Add clear button next to the text box
+clear_button = tk.Button(frame, text="🗑 Clear Text", command=clear_text, font=("Arial", 10, "bold"), bg="red", fg="white")
+clear_button.pack(side=tk.RIGHT, padx=5)
+
+# Add right-click menu to the job description box
+create_context_menu(job_desc_text)
 
 # Improved ATS Check Button
 ats_button = tk.Button(root, text="🔍 Check ATS Compatibility", command=check_ats, font=("Arial", 11, "bold"), bg="lightgray", fg="black", padx=10, pady=5, state=tk.DISABLED)
