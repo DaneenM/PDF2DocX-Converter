@@ -6,8 +6,17 @@ from docx import Document
 import os
 import re
 import subprocess
+import nltk
+from nltk.stem import WordNetLemmatizer
+from nltk.corpus import stopwords
 
-# --- Utility Functions (unchanged) ---
+# Download required resources for nltk (only need to do this once)
+# nltk.download('wordnet')
+# nltk.download('stopwords')
+# nltk.download('punkt')
+
+
+# --- Utility Functions ---
 def select_pdf():
     """Let the user select a PDF file via file dialog."""
     file_path = filedialog.askopenfilename(filetypes=[("PDF Files", "*.pdf")])
@@ -40,7 +49,7 @@ def convert_pdf_to_word():
         cv.close()
 
         messagebox.showinfo("Success", f"Conversion complete!\nSaved in: {docx_file}")
-        subprocess.run(["open", "-a", "LibreOffice", docx_file]) # Good practice for cross-platform
+        subprocess.run(["open", "-a", "LibreOffice", docx_file])
 
     except Exception as e:
         messagebox.showerror("Error", f"Failed to convert file.\nError: {str(e)}")
@@ -55,14 +64,23 @@ def extract_text_from_docx(docx_path):
     return "\n".join([para.text for para in doc.paragraphs])
 
 def compare_keywords(resume_text, job_description):
-    """Check for missing and present keywords in a resume."""
-    job_words = set(re.findall(r'\b\w+\b', job_description.lower()))
-    resume_words = set(re.findall(r'\b\w+\b', resume_text.lower()))
+    """Check for missing and present keywords, using lemmatization."""
+    lemmatizer = WordNetLemmatizer()
+    stop_words = set(stopwords.words('english'))
+
+    def process_text(text):
+        words = re.findall(r'\b\w+\b', text.lower())  # Extract words
+        # Lemmatize, remove stop words, and ensure words are longer than 2 characters
+        return {lemmatizer.lemmatize(w) for w in words if w not in stop_words and len(w) > 2}
+
+    job_words = process_text(job_description)
+    resume_words = process_text(resume_text)
 
     missing_keywords = job_words - resume_words
     matched_keywords = job_words & resume_words
 
     return missing_keywords, matched_keywords
+
 
 def check_ats():
     """Check ATS compatibility and give a pass/fail score."""
@@ -75,13 +93,13 @@ def check_ats():
     job_description = job_desc_text.get("1.0", tk.END).strip()
 
     if not os.path.exists(docx_file):
-        messagebox.showerror("Error", "No converted resume found.")
+        messagebox.showerror("Error", "No converted resume found.  Please convert the PDF to Word first.") # More specific error
         return
 
     resume_text = extract_text_from_docx(docx_file)
     missing, matched = compare_keywords(resume_text, job_description)
 
-    # Basic ATS Scoring System
+    # Basic ATS Scoring System (Adjusted for lemmatized keywords)
     keyword_match_score = (len(matched) / (len(matched) + len(missing))) * 100 if (len(matched) + len(missing)) > 0 else 0
     resume_length = len(resume_text.split())
 
@@ -106,8 +124,8 @@ def check_ats():
 
     result_message = (
         f"🔹 **ATS Score:** {final_score:.2f}%\n"
-        f"✅ **Matched Keywords:** {len(matched)}\n"
-        f"❌ **Missing Keywords:** {', '.join(missing) if missing else 'None'}\n"
+        f"✅ **Matched Keywords:** {', '.join(matched)}\n"
+        f"❌ **Missing Keywords:** {', '.join(missing)}\n"
         f"📄 **Resume Length:** {resume_length} words\n"
         f"{ats_result}"
     )
@@ -129,7 +147,7 @@ def clear_text():
 def on_drop(event):
     """Handle file drop and update the UI."""
     dropped_file = event.data.strip()
-    dropped_file = dropped_file.lstrip('{').rstrip('}')  # Handle macOS/Windows paths
+    dropped_file = dropped_file.lstrip('{').rstrip('}')
 
     if os.path.isfile(dropped_file) and dropped_file.lower().endswith(".pdf"):
         update_selected_file(dropped_file)
@@ -160,7 +178,7 @@ root.title("PDF to Word + ATS Checker")
 root.geometry("600x550")
 root.resizable(False, False)
 root.protocol("WM_DELETE_WINDOW", on_closing)
-root.configure(bg="#f0f0f0")  # Light gray background
+root.configure(bg="#f0f0f0")
 
 # --- Styling ---
 title_font = ("Arial", 16, "bold")
@@ -180,15 +198,15 @@ pdf_entry.pack(side=tk.LEFT, padx=5)
 pdf_entry.drop_target_register(DND_FILES)
 pdf_entry.dnd_bind("<<Drop>>", on_drop)
 
-browse_button = tk.Button(pdf_frame, text="Browse", command=select_pdf, font=button_font, bg="#4CAF50", fg="white", bd=0, padx=10, pady=5, relief="flat")  # GREEN
+browse_button = tk.Button(pdf_frame, text="Browse", command=select_pdf, font=button_font, bg="#4CAF50", fg="#616161", bd=0, padx=10, pady=5, relief="flat")  # Changed text color
 browse_button.pack(side=tk.LEFT, padx=5)
-browse_button.bind("<Enter>", lambda e: browse_button.config(bg="#388E3C"))  # Darker green on hover
+browse_button.bind("<Enter>", lambda e: browse_button.config(bg="#388E3C"))
 browse_button.bind("<Leave>", lambda e: browse_button.config(bg="#4CAF50"))
 
 # --- Convert Button ---
-convert_button = tk.Button(root, text="Convert to Word", command=convert_pdf_to_word, font=button_font, bg="#2196F3", fg="white", state=tk.DISABLED, bd=0, padx=15, pady=8, relief="flat")  # BLUE
+convert_button = tk.Button(root, text="Convert to Word", command=convert_pdf_to_word, font=button_font, bg="#2196F3", fg="#616161", state=tk.DISABLED, bd=0, padx=15, pady=8, relief="flat")  # Changed text color
 convert_button.pack(pady=10)
-convert_button.bind("<Enter>", lambda e: convert_button.config(bg="#1976D2") if convert_button["state"] == "normal" else None) # Darker blue on hover
+convert_button.bind("<Enter>", lambda e: convert_button.config(bg="#1976D2") if convert_button["state"] == "normal" else None)
 convert_button.bind("<Leave>", lambda e: convert_button.config(bg="#2196F3") if convert_button["state"] == "normal" else None)
 
 # --- Job Description Input ---
@@ -203,15 +221,15 @@ job_desc_text.pack(side=tk.LEFT, padx=5)
 job_desc_text.bind("<KeyRelease>", lambda event: check_ats_button_state())
 create_context_menu(job_desc_text)
 
-clear_button = tk.Button(text_frame, text="Clear", command=clear_text, font=button_font, bg="#F44336", fg="white", bd=0, padx=10, pady=5, relief="flat")  # RED
+clear_button = tk.Button(text_frame, text="Clear", command=clear_text, font=button_font, bg="#F44336", fg="#616161", bd=0, padx=10, pady=5, relief="flat")  # Changed text color
 clear_button.pack(side=tk.RIGHT, padx=5)
-clear_button.bind("<Enter>", lambda e: clear_button.config(bg="#D32F2F"))  # Darker red on hover
+clear_button.bind("<Enter>", lambda e: clear_button.config(bg="#D32F2F"))
 clear_button.bind("<Leave>", lambda e: clear_button.config(bg="#F44336"))
 
 # --- ATS Check Button ---
-ats_button = tk.Button(root, text="Check ATS Compatibility", command=check_ats, font=button_font, bg="#8BC34A", fg="white", state=tk.DISABLED, bd=0, padx=15, pady=8, relief="flat")  # LIME GREEN
+ats_button = tk.Button(root, text="Check ATS Compatibility", command=check_ats, font=button_font, bg="#8BC34A", fg="#616161", state=tk.DISABLED, bd=0, padx=15, pady=8, relief="flat")  # Changed text color
 ats_button.pack(pady=20)
-ats_button.bind("<Enter>", lambda e: ats_button.config(bg="#689F38") if ats_button["state"] == "normal" else None)  # Darker lime on hover
+ats_button.bind("<Enter>", lambda e: ats_button.config(bg="#689F38") if ats_button["state"] == "normal" else None)
 ats_button.bind("<Leave>", lambda e: ats_button.config(bg="#8BC34A") if ats_button["state"] == "normal" else None)
 
 # --- Run GUI ---
