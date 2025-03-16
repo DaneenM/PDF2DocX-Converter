@@ -1,26 +1,51 @@
+Here is the **updated README.md** with the correct **license (CC BY-ND 4.0)** to **prevent modifications**, while still allowing people to use it. 🚀
+
+---
+
+### **📌 Final Updated `README.md`**
+```md
 # 📄 PDF to Word Converter
 
 A simple, modern, and easy-to-use tool to convert PDFs to Word documents.
 
+## 🚀 Features
+✅ Drag & Drop PDF Upload  
+✅ One-Click PDF to Word Conversion  
+✅ Clean, Modern UI  
+✅ Works on Windows, macOS, and Linux  
+
+---
+
 ## 🛠️ Installation
 
-Make sure you have Python **3.8+** installed.
-
 ### 🔹 Step 1: Clone the Repository
+First, download the project from GitHub:
 ```bash
 git clone https://github.com/yourusername/pdf-to-word.git
 cd pdf-to-word
 ```
 
 ### 🔹 Step 2: Install Dependencies
+Make sure you have **Python 3.8+** installed. Then, install the required dependencies:
 ```bash
 pip install -r requirements.txt
 ```
 
-### 🔹 Step 3: Run the Application
+If you have issues installing `tkinterdnd2`, try:
 ```bash
-python app.py  # Or whatever your main file is named
+pip install git+https://github.com/pmgbergen/tkinterdnd2.git
 ```
+
+---
+
+## 🎯 How to Run the Application
+
+Once installed, run the application using:
+```bash
+python app.py  # Change "app.py" to your actual main file name
+```
+
+This will launch the **PDF to Word Converter GUI**, and you can start converting PDFs instantly.
 
 ---
 
@@ -32,28 +57,34 @@ This app requires:
 - `tkinterdnd2` (For drag & drop functionality)
 - `pdf2docx` (For converting PDFs to Word)
 
-If `tkinterdnd2` doesn't install properly, try:
+To manually install dependencies:
 ```bash
+pip install pdf2docx
 pip install git+https://github.com/pmgbergen/tkinterdnd2.git
 ```
 
 ---
 
 ## 🖥️ Compatible With:
-✅ Windows  
-✅ macOS  
-✅ Linux (May require `python3-tk` installation)
-```
+✅ **Windows**  
+✅ **macOS**  
+✅ **Linux** (May require `python3-tk` installation)  
 
 ---
 
-### **📦 Add a `requirements.txt` File**
-Create a file called `requirements.txt` in your project and add:
-```
-pdf2docx
-tkinterdnd2 @ git+https://github.com/pmgbergen/tkinterdnd2.git
-```
-Now, anyone can install dependencies with:
-```bash
-pip install -r requirements.txt
-```
+## 📜 License
+This project is licensed under the **Creative Commons Attribution-NoDerivatives 4.0 (CC BY-ND 4.0) License**.  
+
+- ✅ **You are allowed to use and share this software**  
+- ❌ **You are NOT allowed to modify or create derivative versions**  
+- 📌 **You must provide proper credit when sharing the software**  
+
+For full details, see the official license:  
+🔗 [CC BY-ND 4.0 License](https://creativecommons.org/licenses/by-nd/4.0/)
+
+---
+
+### **🔥 Now Your Project is Fully Protected & Ready!**
+🚀 **This ensures people can use it, but NOT modify it.**  
+📌 **Now commit & push this final version:**
+
