@@ -7,6 +7,7 @@ import os
 import re
 import subprocess
 
+# --- Utility Functions (unchanged) ---
 def select_pdf():
     """Let the user select a PDF file via file dialog."""
     file_path = filedialog.askopenfilename(filetypes=[("PDF Files", "*.pdf")])
@@ -17,7 +18,7 @@ def update_selected_file(file_path):
     """Update the entry field and enable the convert button."""
     pdf_entry.delete(0, tk.END)
     pdf_entry.insert(0, file_path)
-    convert_button.config(state=tk.NORMAL, bg="blue", fg="white")
+    convert_button.config(state=tk.NORMAL)
     check_ats_button_state()
 
 def convert_pdf_to_word():
@@ -37,9 +38,9 @@ def convert_pdf_to_word():
         cv = Converter(pdf_file)
         cv.convert(docx_file, start=0, end=None)
         cv.close()
-        
+
         messagebox.showinfo("Success", f"Conversion complete!\nSaved in: {docx_file}")
-        subprocess.run(["open", "-a", "LibreOffice", docx_file])
+        subprocess.run(["open", "-a", "LibreOffice", docx_file]) # Good practice for cross-platform
 
     except Exception as e:
         messagebox.showerror("Error", f"Failed to convert file.\nError: {str(e)}")
@@ -87,12 +88,12 @@ def check_ats():
     # ATS-Friendly Formatting Check
     formatting_issues = 0
     if resume_length < 200:
-        formatting_issues += 1  
+        formatting_issues += 1
     if "image" in resume_text.lower() or "table" in resume_text.lower():
-        formatting_issues += 0.5  
+        formatting_issues += 0.5
 
     # Final Score Calculation
-    final_score = keyword_match_score - (formatting_issues * 10)  
+    final_score = keyword_match_score - (formatting_issues * 10)
     final_score = max(0, min(100, final_score))
 
     # Pass/Fail Criteria
@@ -116,9 +117,9 @@ def check_ats():
 def check_ats_button_state():
     """Enable ATS check button only when both fields are filled."""
     if pdf_entry.get().strip() and job_desc_text.get("1.0", tk.END).strip():
-        ats_button.config(state=tk.NORMAL, bg="green", fg="white")
+        ats_button.config(state=tk.NORMAL)
     else:
-        ats_button.config(state=tk.DISABLED, bg="lightgray", fg="black")
+        ats_button.config(state=tk.DISABLED)
 
 def clear_text():
     """Clear the job description text box."""
@@ -127,70 +128,91 @@ def clear_text():
 
 def on_drop(event):
     """Handle file drop and update the UI."""
-    dropped_file = event.data.strip()  
+    dropped_file = event.data.strip()
+    dropped_file = dropped_file.lstrip('{').rstrip('}')  # Handle macOS/Windows paths
+
     if os.path.isfile(dropped_file) and dropped_file.lower().endswith(".pdf"):
         update_selected_file(dropped_file)
     else:
         messagebox.showerror("Error", "Please drop a valid PDF file.")
 
 def on_closing():
-    """Handle the close event properly so the app exits without freezing."""
+    """Handle the close event."""
     if messagebox.askokcancel("Quit", "Are you sure you want to close?"):
         root.destroy()
 
 def create_context_menu(widget):
-    """Create right-click context menu for copy, cut, and paste."""
+    """Create right-click context menu."""
     menu = Menu(root, tearoff=0)
     menu.add_command(label="Cut", command=lambda: widget.event_generate("<<Cut>>"))
     menu.add_command(label="Copy", command=lambda: widget.event_generate("<<Copy>>"))
     menu.add_command(label="Paste", command=lambda: widget.event_generate("<<Paste>>"))
 
     def show_menu(event):
-        """Show context menu on right-click."""
         menu.tk_popup(event.x_root, event.y_root)
 
-    widget.bind("<Button-2>" if os.name == "posix" else "<Button-3>", show_menu)  
+    widget.bind("<Button-2>" if os.name == "posix" else "<Button-3>", show_menu)
 
-# Create GUI
-root = TkinterDnD.Tk()  
+
+# --- Main GUI Setup ---
+root = TkinterDnD.Tk()
 root.title("PDF to Word + ATS Checker")
-root.geometry("600x600")
+root.geometry("600x550")
 root.resizable(False, False)
 root.protocol("WM_DELETE_WINDOW", on_closing)
+root.configure(bg="#f0f0f0")  # Light gray background
 
-# Enable Drag & Drop
-pdf_entry = tk.Entry(root, width=50)
-pdf_entry.pack(pady=5)
+# --- Styling ---
+title_font = ("Arial", 16, "bold")
+label_font = ("Arial", 10)
+button_font = ("Arial", 11, "bold")
+
+# --- Top Section: Title ---
+title_label = tk.Label(root, text="PDF to Word + ATS Checker", font=title_font, bg="#f0f0f0")
+title_label.pack(pady=(20, 10))
+
+# --- PDF Selection Area ---
+pdf_frame = tk.Frame(root, bg="#f0f0f0")
+pdf_frame.pack(pady=10)
+
+pdf_entry = tk.Entry(pdf_frame, width=40, font=label_font, bd=1, relief="solid", highlightthickness=1, highlightcolor="#aaa")
+pdf_entry.pack(side=tk.LEFT, padx=5)
 pdf_entry.drop_target_register(DND_FILES)
 pdf_entry.dnd_bind("<<Drop>>", on_drop)
 
-# UI Elements
-tk.Label(root, text="Drag & Drop a PDF or Click Browse").pack(pady=5)
-tk.Button(root, text="📂 Browse", command=select_pdf, font=("Arial", 10, "bold"), bg="lightgray").pack(pady=5)
+browse_button = tk.Button(pdf_frame, text="Browse", command=select_pdf, font=button_font, bg="#4CAF50", fg="white", bd=0, padx=10, pady=5, relief="flat")  # GREEN
+browse_button.pack(side=tk.LEFT, padx=5)
+browse_button.bind("<Enter>", lambda e: browse_button.config(bg="#388E3C"))  # Darker green on hover
+browse_button.bind("<Leave>", lambda e: browse_button.config(bg="#4CAF50"))
 
-# Convert Button
-convert_button = tk.Button(root, text="🔄 Convert to Word", command=convert_pdf_to_word, bg="gray", fg="white", font=("Arial", 10, "bold"), state=tk.DISABLED)
+# --- Convert Button ---
+convert_button = tk.Button(root, text="Convert to Word", command=convert_pdf_to_word, font=button_font, bg="#2196F3", fg="white", state=tk.DISABLED, bd=0, padx=15, pady=8, relief="flat")  # BLUE
 convert_button.pack(pady=10)
+convert_button.bind("<Enter>", lambda e: convert_button.config(bg="#1976D2") if convert_button["state"] == "normal" else None) # Darker blue on hover
+convert_button.bind("<Leave>", lambda e: convert_button.config(bg="#2196F3") if convert_button["state"] == "normal" else None)
 
-# Job Description Input
-tk.Label(root, text="Paste Job Description Below:").pack(pady=5)
-frame = tk.Frame(root)
-frame.pack()
+# --- Job Description Input ---
+job_desc_label = tk.Label(root, text="Paste Job Description Below:", font=label_font, bg="#f0f0f0")
+job_desc_label.pack()
 
-job_desc_text = scrolledtext.ScrolledText(frame, height=6, width=60, wrap=tk.WORD)
-job_desc_text.pack(side=tk.LEFT, padx=5, pady=5)
+text_frame = tk.Frame(root, bg="#f0f0f0")
+text_frame.pack(pady=5)
+
+job_desc_text = scrolledtext.ScrolledText(text_frame, height=6, width=50, wrap=tk.WORD, font=label_font, bd=1, relief="solid", highlightthickness=1, highlightcolor="#aaa")
+job_desc_text.pack(side=tk.LEFT, padx=5)
 job_desc_text.bind("<KeyRelease>", lambda event: check_ats_button_state())
-
-# Add clear button next to the text box
-clear_button = tk.Button(frame, text="🗑 Clear Text", command=clear_text, font=("Arial", 10, "bold"), bg="red", fg="white")
-clear_button.pack(side=tk.RIGHT, padx=5)
-
-# Add right-click menu to the job description box
 create_context_menu(job_desc_text)
 
-# Improved ATS Check Button
-ats_button = tk.Button(root, text="🔍 Check ATS Compatibility", command=check_ats, font=("Arial", 11, "bold"), bg="lightgray", fg="black", padx=10, pady=5, state=tk.DISABLED)
-ats_button.pack(pady=15)
+clear_button = tk.Button(text_frame, text="Clear", command=clear_text, font=button_font, bg="#F44336", fg="white", bd=0, padx=10, pady=5, relief="flat")  # RED
+clear_button.pack(side=tk.RIGHT, padx=5)
+clear_button.bind("<Enter>", lambda e: clear_button.config(bg="#D32F2F"))  # Darker red on hover
+clear_button.bind("<Leave>", lambda e: clear_button.config(bg="#F44336"))
 
-# Run GUI
+# --- ATS Check Button ---
+ats_button = tk.Button(root, text="Check ATS Compatibility", command=check_ats, font=button_font, bg="#8BC34A", fg="white", state=tk.DISABLED, bd=0, padx=15, pady=8, relief="flat")  # LIME GREEN
+ats_button.pack(pady=20)
+ats_button.bind("<Enter>", lambda e: ats_button.config(bg="#689F38") if ats_button["state"] == "normal" else None)  # Darker lime on hover
+ats_button.bind("<Leave>", lambda e: ats_button.config(bg="#8BC34A") if ats_button["state"] == "normal" else None)
+
+# --- Run GUI ---
 root.mainloop()
